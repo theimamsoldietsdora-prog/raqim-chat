@@ -1,172 +1,296 @@
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-    const firebaseConfig = {
-        databaseURL: "https://raqim-chat-default-rtdb.firebaseio.com/"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    let myId = 'user-' + Math.floor(Math.random() * 9000 + 1000);
-    let currentRoom = 'raqim-global-room';
-    let messagesRef = null;
-
-    window.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('myIdText').textContent = currentRoom;
-        initChatRoom(currentRoom);
-
-        // ربط الأزرار برمجياً لضمان عدم تعطلها
-        document.querySelector('.fa-user-plus').addEventListener('click', openAddFriendModal);
-        document.querySelector('.fa-fingerprint').addEventListener('click', openMyIdModal);
-        document.querySelector('.fa-phone').addEventListener('click', () => startCall('audio'));
-        document.querySelector('.fa-video').addEventListener('click', () => startCall('video'));
-        document.querySelector('.fa-power-off').addEventListener('click', exitApp);
-    });
-
-    function initRoomMessages(roomName) {
-        messagesRef = ref(db, 'rooms/' + roomName);
-        onChildAdded(messagesRef, (snapshot) => {
-            let data = snapshot.val();
-            if (data && data.sender !== myId) {
-                appendMessage(data.content, 'received', data.isMedia);
-            }
-        });
-    }
-
-    function initChatRoom(room) {
-        initRoomMessages(room);
-    }
-
-    function openMyIdModal() { document.getElementById('myIdModal').style.display = 'flex'; }
-    function openAddFriendModal() { document.getElementById('addFriendModal').style.display = 'flex'; }
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الرَّقِيم | RAQIM</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#075e54">
     
-    window.closeModals = function() {
-        document.getElementById('myIdModal').style.display = 'none';
-        document.getElementById('addFriendModal').style.display = 'none';
-    }
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- استيراد مكتبات Firebase بالطريقة التقليدية المستقرة -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+        body { background-color: #efeae2; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        header { background: #075e54; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .header-title { font-size: 1rem; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+        .header-actions { display: flex; align-items: center; gap: 14px; }
+        .header-actions i { font-size: 1.1rem; cursor: pointer; padding: 4px; }
 
-    window.copyMyId = function() {
-        navigator.clipboard.writeText(currentRoom).then(() => alert('تم نسخ كود الغرفة!'));
-    }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; width: 100%; height: 100%; position: relative; }
+        .chat-header { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ddd; }
+        
+        .messages-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 70px; }
+        
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 0.95rem; position: relative; word-wrap: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg.sent { background: #d9fdd3; align-self: flex-start; }
+        .msg.received { background: #ffffff; align-self: flex-end; }
+        .msg.system { background: #e1f5fe; align-self: center; font-size: 0.8rem; color: #0288d1; max-width: 90%; text-align: center; }
+        .msg .delete-btn { font-size: 0.75rem; color: #ea0000; cursor: pointer; margin-top: 6px; display: block; text-align: left; font-weight: bold; }
+        .msg audio, .msg img, .msg video { max-width: 100%; border-radius: 6px; margin-top: 5px; }
 
-    window.joinRoom = function() {
-        const roomInput = document.getElementById('friendIdInput').value.trim();
-        if (!roomInput) return alert('أدخل كود الغرفة بشكل صحيح');
-        currentRoom = roomInput;
-        document.getElementById('myIdText').textContent = currentRoom;
-        document.getElementById('currentChatName').textContent = 'غرفة: ' + currentRoom;
-        document.getElementById('messagesContainer').innerHTML = '';
-        window.closeModals();
-        appendSystemMessage('تم الانتقال بنجاح إلى الغرفة: ' + currentRoom);
-        document.getElementById('friendIdInput').value = '';
-        initChatRoom(currentRoom);
-    }
+        .input-bar { position: absolute; bottom: 0; left: 0; right: 0; background: #f0f2f5; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #ccc; z-index: 100; }
+        .input-bar input[type="text"] { flex: 1; padding: 10px 16px; border: none; border-radius: 24px; outline: none; font-size: 1rem; background: #fff; }
+        .icon-btn { background: none; border: none; font-size: 1.2rem; color: #54656f; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; }
+        
+        .send-btn { background: #00a884; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; transition: background 0.2s; }
+        .send-btn:hover { background: #01755d; }
 
-    window.sendMessage = function() {
-        const input = document.getElementById('messageInput');
-        const text = input.value.trim();
-        if (!text) return;
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 340px; text-align: center; }
+        .modal-content input { width: 100%; padding: 10px; margin: 12px 0; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 0.95rem; text-align: center; }
+        .modal-btn { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        .modal-btn-secondary { background: #54656f; margin-top: 8px; }
+        .my-id-display { background: #f0f2f5; padding: 10px; border-radius: 6px; font-weight: bold; color: #075e54; word-break: break-all; margin: 10px 0; font-size: 0.9rem; border: 1px dashed #075e54; }
 
-        let messagePayload = {
-            sender: myId,
-            content: text,
-            isMedia: false,
-            time: Date.now()
+        .call-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+        .video-box { width: 85%; max-width: 600px; height: 350px; background: #222; border-radius: 12px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+        .call-actions { margin-top: 20px; display: flex; gap: 20px; }
+        .end-call-btn { background: #ff3b30; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <i class="fa-solid fa-shield-halved"></i> 
+            <span id="currentChatName">الرَّقِيم (السحابي الآمن)</span>
+        </div>
+        <div class="header-actions">
+            <i class="fa-solid fa-user-plus" id="btnJoin" title="انضمام لغرفة"></i>
+            <i class="fa-solid fa-fingerprint" id="btnMyId" title="كود الغرفة"></i>
+            <i class="fa-solid fa-phone" id="btnCall" title="مكالمة"></i>
+            <i class="fa-solid fa-video" id="btnVideo" title="فيديو"></i>
+            <i class="fa-solid fa-power-off" id="btnExit" title="خروج"></i>
+        </div>
+    </header>
+
+    <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="chat-area">
+            <div class="chat-header">
+                <span style="font-size: 0.85rem; font-weight: bold;">متصل بالسحابة المركزية</span>
+                <span style="font-size: 0.75rem; color: #00a884;">متصل مباشر <i class="fa-solid fa-lock"></i></span>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم الاتصال بقاعدة بياناتك السحابية بنجاح. أرسل كود الغرفة لصديقك وابدأ المحادثة الفورية!</div>
+            </div>
+
+            <div class="input-bar">
+                <input type="file" id="fileInput" style="display: none;" onchange="sendFile(this)">
+                <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="إرفاق"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()" title="صوت"><i class="fa-solid fa-microphone"></i></button>
+                <input type="text" id="messageInput" placeholder="أكتب رسالة..." onkeypress="handleKeyPress(event)">
+                <button class="send-btn" onclick="sendMessage()" title="إرسال"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="myIdModal">
+        <div class="modal-content">
+            <h3>كود الغرفة الحالي</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">شارك هذا الكود مع الشخص الآخر ليتصل معك:</p>
+            <div class="my-id-display" id="myIdText">raqim-global-room</div>
+            <button class="modal-btn" onclick="copyMyId()">نسخ الكود</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="modal" id="addFriendModal">
+        <div class="modal-content">
+            <h3>الانضمام لغرفة مشتركة</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل نفس كود غرفة صديقك:</p>
+            <input type="text" id="friendIdInput" placeholder="مثال: room-123">
+            <button class="modal-btn" onclick="joinRoom()">دخول الغرفة</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
+        </div>
+    </div>
+
+    <div class="call-overlay" id="callOverlay">
+        <div class="video-box" id="videoBox">
+            <p style="color: white; text-align: center;">جاري الاتصال...</p>
+        </div>
+        <div class="call-actions">
+            <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء</button>
+        </div>
+    </div>
+
+    <script>
+        // إعدادات Firebase
+        const firebaseConfig = {
+            databaseURL: "https://raqim-chat-default-rtdb.firebaseio.com/"
         };
 
-        if (messagesRef) {
-            push(messagesRef, messagePayload);
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let myId = 'user-' + Math.floor(Math.random() * 9000 + 1000);
+        let currentRoom = 'raqim-global-room';
+        let messagesRef = null;
+
+        window.onload = function() {
+            document.getElementById('myIdText').textContent = currentRoom;
+            initChatRoom(currentRoom);
+
+            // ربط الأزرار بسلاسة
+            document.getElementById('btnMyId').onclick = openMyIdModal;
+            document.getElementById('btnJoin').onclick = openAddFriendModal;
+            document.getElementById('btnCall').onclick = () => startCall('audio');
+            document.getElementById('btnVideo').onclick = () => startCall('video');
+            document.getElementById('btnExit').onclick = exitApp;
+        };
+
+        function initRoomMessages(roomName) {
+            messagesRef = db.ref('rooms/' + roomName);
+            messagesRef.on('child_added', (snapshot) => {
+                let data = snapshot.val();
+                if (data && data.sender !== myId) {
+                    appendMessage(data.content, 'received', data.isMedia);
+                }
+            });
         }
 
-        appendMessage(text, 'sent');
-        input.value = '';
-    }
+        function initChatRoom(room) {
+            if(messagesRef) messagesRef.off(); // إلغاء الاستماع القديم
+            initRoomMessages(room);
+        }
 
-    window.handleKeyPress = function(e) { if (e.key === 'Enter') sendMessage(); }
+        function openMyIdModal() { document.getElementById('myIdModal').style.display = 'flex'; }
+        function openAddFriendModal() { document.getElementById('addFriendModal').style.display = 'flex'; }
+        
+        window.closeModals = function() {
+            document.getElementById('myIdModal').style.display = 'none';
+            document.getElementById('addFriendModal').style.display = 'none';
+        }
 
-    window.sendFile = function(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            let tag = `<img src="${e.target.result}" />`;
-            let payload = {
+        window.copyMyId = function() {
+            navigator.clipboard.writeText(currentRoom).then(() => alert('تم نسخ كود الغرفة!'));
+        }
+
+        window.joinRoom = function() {
+            const roomInput = document.getElementById('friendIdInput').value.trim();
+            if (!roomInput) return alert('أدخل كود الغرفة بشكل صحيح');
+            currentRoom = roomInput;
+            document.getElementById('myIdText').textContent = currentRoom;
+            document.getElementById('currentChatName').textContent = 'غرفة: ' + currentRoom;
+            document.getElementById('messagesContainer').innerHTML = '';
+            closeModals();
+            appendSystemMessage('تم الانتقال بنجاح إلى الغرفة: ' + currentRoom);
+            document.getElementById('friendIdInput').value = '';
+            initChatRoom(currentRoom);
+        }
+
+        window.sendMessage = function() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            let messagePayload = {
                 sender: myId,
-                content: tag,
-                isMedia: true,
+                content: text,
+                isMedia: false,
                 time: Date.now()
             };
+
             if (messagesRef) {
-                push(messagesRef, payload);
+                messagesRef.push(messagePayload);
             }
-            appendMessage(tag, 'sent', true);
-        };
-        reader.readAsDataURL(file);
-    }
 
-    function appendMessage(content, type, isMedia = false) {
-        const container = document.getElementById('messagesContainer');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${type}`;
-        if (isMedia) msgDiv.innerHTML = content;
-        else msgDiv.textContent = content;
-
-        const deleteBtn = document.createElement('span');
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> مسح';
-        deleteBtn.onclick = () => msgDiv.remove();
-        msgDiv.appendChild(deleteBtn);
-
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function appendSystemMessage(text) {
-        const container = document.getElementById('messagesContainer');
-        const msgDiv = document.createElement('div');
-        msgDiv.className = 'msg system';
-        msgDiv.textContent = text;
-        container.appendChild(msgDiv);
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function exitApp() {
-        if (confirm("إغلاق التطبيق؟")) window.location.href = "about:blank";
-    }
-
-    let mediaRecorder, chunks = [], recording = false;
-    window.toggleRecord = async function() {
-        const btn = document.getElementById('recordBtn');
-        if (!recording) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = e => chunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'audio/mp3' });
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        let tag = `<audio controls src="${e.target.result}"></audio>`;
-                        let payload = { sender: myId, content: tag, isMedia: true, time: Date.now() };
-                        if (messagesRef) push(messagesRef, payload);
-                        appendMessage(tag, 'sent', true);
-                    };
-                    reader.readAsDataURL(blob);
-                    chunks = [];
-                };
-                mediaRecorder.start();
-                recording = true;
-                btn.style.color = 'red';
-            } catch(e) { alert('الميكروفون غير متاح'); }
-        } else {
-            mediaRecorder.stop();
-            recording = false;
-            btn.style.color = '#54656f';
+            appendMessage(text, 'sent');
+            input.value = '';
         }
-    }
 
-    function startCall(t) { document.getElementById('callOverlay').style.display = 'flex'; }
-    window.endCall = function() { document.getElementById('callOverlay').style.display = 'none'; }
-</script>
+        window.handleKeyPress = function(e) { if (e.key === 'Enter') sendMessage(); }
+
+        window.sendFile = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let tag = `<img src="${e.target.result}" />`;
+                let payload = {
+                    sender: myId,
+                    content: tag,
+                    isMedia: true,
+                    time: Date.now()
+                };
+                if (messagesRef) {
+                    messagesRef.push(payload);
+                }
+                appendMessage(tag, 'sent', true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function appendMessage(content, type, isMedia = false) {
+            const container = document.getElementById('messagesContainer');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${type}`;
+            if (isMedia) msgDiv.innerHTML = content;
+            else msgDiv.textContent = content;
+
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> مسح';
+            deleteBtn.onclick = () => msgDiv.remove();
+            msgDiv.appendChild(deleteBtn);
+
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendSystemMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'msg system';
+            msgDiv.textContent = text;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function exitApp() {
+            if (confirm("إغلاق التطبيق؟")) window.location.href = "about:blank";
+        }
+
+        let mediaRecorder, chunks = [], recording = false;
+        window.toggleRecord = async function() {
+            const btn = document.getElementById('recordBtn');
+            if (!recording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'audio/mp3' });
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            let tag = `<audio controls src="${e.target.result}"></audio>`;
+                            let payload = { sender: myId, content: tag, isMedia: true, time: Date.now() };
+                            if (messagesRef) messagesRef.push(payload);
+                            appendMessage(tag, 'sent', true);
+                        };
+                        reader.readAsDataURL(blob);
+                        chunks = [];
+                    };
+                    mediaRecorder.start();
+                    recording = true;
+                    btn.style.color = 'red';
+                } catch(e) { alert('الميكروفون غير متاح'); }
+            } else {
+                mediaRecorder.stop();
+                recording = false;
+                btn.style.color = '#54656f';
+            }
+        }
+
+        function startCall(t) { document.getElementById('callOverlay').style.display = 'flex'; }
+        window.endCall = function() { document.getElementById('callOverlay').style.display = 'none'; }
+    </script>
+</body>
+</html>
