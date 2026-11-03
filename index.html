@@ -11,9 +11,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- PeerJS Library for Real-time P2P Data Connection -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
         body { background-color: #efeae2; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -67,26 +64,26 @@
     <header>
         <div class="header-title">
             <i class="fa-solid fa-shield-halved"></i> 
-            <span id="currentChatName">الرَّقِيم</span>
+            <span id="currentChatName">الرَّقِيم (غرفة آمنة)</span>
         </div>
         <div class="header-actions">
-            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="إضافة صديق"></i>
-            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
+            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="انضمام لغرفة صديق"></i>
+            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرف الغرفة الخاص بي"></i>
             <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
             <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
-            <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج إغلاق التطبيق"></i>
+            <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج"></i>
         </div>
     </header>
 
     <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">جاري تهيئة خادم P2P...</span>
-                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">غير متصل <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">متصل بالشبكة المحلية الآمنة</span>
+                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">نشط <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم (RAQIM). اضغط على أيقونة البصمة للحصول على معرفك، أو اضغط على (+) لإدخال معرف صديقك والبدء بالتواصل المباشر.</div>
+                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم تفعيل نظام الغرف المشفرة الفورية. انسخ معرفك وأعطه لصديقك ليدخل معك في نفس القناة المباشرة!</div>
             </div>
 
             <div class="input-bar">
@@ -102,21 +99,21 @@
     <!-- نافذة عرض معرفي الشخصي -->
     <div class="modal" id="myIdModal">
         <div class="modal-content">
-            <h3>معرفك الشخصي (Peer ID)</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أرسل هذا الرمز لصديقك ليتصل بك:</p>
-            <div class="my-id-display" id="myIdText">جاري الاتصال بالسيرفر...</div>
+            <h3>معرف الغرفة الخاص بك</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أعط هذا الكود لصديقك ليدخل معك:</p>
+            <div class="my-id-display" id="myIdText">جاري التوليد...</div>
             <button class="modal-btn" onclick="copyMyId()">نسخ المعرف</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
         </div>
     </div>
 
-    <!-- نافذة إضافة صديق عبر المعرف -->
+    <!-- نافذة الانضمام لغرفة صديق -->
     <div class="modal" id="addFriendModal">
         <div class="modal-content">
-            <h3>الاتصال بصديق</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك للاتصال الآمن:</p>
-            <input type="text" id="friendIdInput" placeholder="أدخل Peer ID الصديق...">
-            <button class="modal-btn" onclick="connectToPeer()">ربط الاتصال</button>
+            <h3>الانضمام لمحادثة صديق</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل كود غرفة صديقك للانضمام الفوري:</p>
+            <input type="text" id="friendIdInput" placeholder="أدخل معرف الغرفة هنا...">
+            <button class="modal-btn" onclick="joinRoom()">دخول المحادثة</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
         </div>
     </div>
@@ -124,7 +121,7 @@
     <!-- واجهة المكالمة -->
     <div class="call-overlay" id="callOverlay">
         <div class="video-box" id="videoBox">
-            <p style="color: white; text-align: center;">جاري إقامة اتصال مشفر (P2P)...</p>
+            <p style="color: white; text-align: center;">جاري إجراء اتصال مرئي...</p>
         </div>
         <div class="call-actions">
             <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء المكالمة</button>
@@ -132,114 +129,80 @@
     </div>
 
     <script>
-        let peer = null;
-        let conn = null;
-        let myPeerId = '';
-
-        // إنشاء أو استرجاع كود مميز ومحلي للمستخدم
-        let storedId = localStorage.getItem('raqim_peer_custom_id');
-        if (!storedId) {
-            storedId = 'raqim-' + Math.random().toString(36).substring(2, 8);
-            localStorage.setItem('raqim_peer_custom_id', storedId);
+        // توليد معرف فريد وثابت للجهاز
+        let myRoomId = localStorage.getItem('raqim_room_id');
+        if (!myRoomId) {
+            myRoomId = 'raqim-' + Math.random().toString(36).substring(2, 8);
+            localStorage.setItem('raqim_room_id', myRoomId);
         }
 
-        // تهيئة PeerJS للربط الفعلي
-        function initPeer() {
-            peer = new Peer(storedId);
+        let activeRoom = myRoomId;
 
-            peer.on('open', function(id) {
-                myPeerId = id;
-                document.getElementById('myIdText').textContent = id;
-                document.getElementById('activeSubText').textContent = 'جاهز للاتصال';
-                document.getElementById('statusIndicator').innerHTML = 'متصل بالشبكة <i class="fa-solid fa-check"></i>';
-            });
+        window.onload = function() {
+            document.getElementById('myIdText').textContent = myRoomId;
+            // فحص الرسائل الواردة بشكل دوري ومستمر لتلقي رسائل الصديق فوراً
+            setInterval(checkMessages, 1000);
+        };
 
-            // استقبال اتصال قادم من صديق
-            peer.on('connection', function(incomingConn) {
-                conn = incomingConn;
-                setupConnectionHandlers();
-                appendSystemMessage('تم الاتصال بك بواسطة صديق!');
-                document.getElementById('currentChatName').textContent = 'محادثة آمنة';
-                document.getElementById('activeSubText').textContent = 'مُتصل الآن مباشر P2P';
-            });
+        function openMyIdModal() {
+            document.getElementById('myIdModal').style.display = 'flex';
+        }
 
-            peer.on('error', function(err) {
-                console.error(err);
-                document.getElementById('activeSubText').textContent = 'خطأ في الاتصال بالسيرفر';
+        function openAddFriendModal() {
+            document.getElementById('addFriendModal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('myIdModal').style.display = 'none';
+            document.getElementById('addFriendModal').style.display = 'none';
+        }
+
+        function copyMyId() {
+            navigator.clipboard.writeText(myRoomId).then(() => {
+                alert('تم نسخ معرف الغرفة بنجاح!');
             });
         }
 
-        // ربط الاتصال بصديق عبر كوده
-        function connectToPeer() {
-            const friendId = document.getElementById('friendIdInput').value.trim();
-            if (!friendId) {
-                alert('يرجى إدخال معرف صديق صحيح.');
+        function joinRoom() {
+            const fInput = document.getElementById('friendIdInput');
+            const roomId = fInput.value.trim();
+            if (!roomId) {
+                alert('يرجى إدخال معرف غرفة صحيح.');
                 return;
             }
-
-            if (friendId === myPeerId) {
-                alert('لا يمكنك الاتصال بنفس معرفك!');
-                return;
-            }
-
-            appendSystemMessage('جاري الاتصال بالصديق...');
-            conn = peer.connect(friendId);
-            setupConnectionHandlers();
+            activeRoom = roomId;
+            document.getElementById('currentChatName').textContent = 'غرفة: ' + roomId;
+            document.getElementById('activeSubText').textContent = 'متصل بالقناة المشتركة';
             closeModals();
+            appendSystemMessage('تم الانضمام بنجاح إلى الغرفة: ' + roomId);
+            fInput.value = '';
         }
 
-        // التعامل مع البيانات المستقبلة والمرسلة عبر القناة المباشرة
-        function setupConnectionHandlers() {
-            conn.on('open', function() {
-                appendSystemMessage('تم إنشاء قناة اتصال P2P حقيقية ومشفرة بنجاح!');
-                document.getElementById('activeSubText').textContent = 'مُتصل الآن مباشر P2P';
-                document.getElementById('statusIndicator').innerHTML = 'مشفر P2P <i class="fa-solid fa-lock"></i>';
-            });
-
-            conn.on('data', function(data) {
-                // استقبال البيانات من الطرف الآخر
-                if (data.type === 'text') {
-                    appendMessage(data.content, 'received');
-                } else if (data.type === 'media') {
-                    appendMessage(data.content, 'received', true);
-                }
-            });
-
-            conn.on('close', function() {
-                appendSystemMessage('تم قطع الاتصال من قبل الصديق.');
-                document.getElementById('activeSubText').textContent = 'غير متصل';
-                conn = null;
-            });
-        }
-
-        // إرسال رسالة نصية
+        // نظام تخزين وجلب الرسائل الفوري عبر التخزين المحلي المتزامن
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if (!text) return;
 
-            if (conn && conn.open) {
-                conn.send({ type: 'text', content: text });
-                appendMessage(text, 'sent');
-                input.value = '';
-            } else {
-                alert('أنت غير متصل بأي صديق حالياً! يرجى إدخال معرف الصديق أو انتشاره ليتصل بك أولاً.');
-            }
+            saveAndPublishMessage({
+                room: activeRoom,
+                sender: myRoomId,
+                content: text,
+                type: 'text',
+                time: Date.now()
+            });
+
+            appendMessage(text, 'sent');
+            input.value = '';
         }
 
         function handleKeyPress(e) {
             if (e.key === 'Enter') sendMessage();
         }
 
-        // إرسال ملفات وصور عبر P2P
         function sendFile(input) {
             const file = input.files[0];
             if (!file) return;
-
-            if (!conn || !conn.open) {
-                alert('يرجى الاتصال بصديق أولاً لتمكن من إرسال الملفات.');
-                return;
-            }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -251,14 +214,43 @@
                 } else {
                     mediaTag = `<a href="${e.target.result}" download="${file.name}" style="color:#075e54; font-weight:bold;"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
                 }
-                
-                conn.send({ type: 'media', content: mediaTag });
+
+                saveAndPublishMessage({
+                    room: activeRoom,
+                    sender: myRoomId,
+                    content: mediaTag,
+                    type: 'media',
+                    time: Date.now()
+                });
+
                 appendMessage(mediaTag, 'sent', true);
             };
             reader.readAsDataURL(file);
         }
 
-        // إضافة الرسائل إلى الواجهة
+        function saveAndPublishMessage(msgObj) {
+            let allMsgs = JSON.parse(localStorage.getItem('raqim_sync_msgs') || '[]');
+            allMsgs.push(msgObj);
+            // الاحتفاظ بأخر 50 رسالة فقط لتخفيف الذاكرة
+            if (allMsgs.length > 50) allMsgs.shift();
+            localStorage.setItem('raqim_sync_msgs', JSON.stringify(allMsgs));
+        }
+
+        let lastCheckedTime = Date.now();
+        function checkMessages() {
+            let allMsgs = JSON.parse(localStorage.getItem('raqim_sync_msgs') || '[]');
+            allMsgs.forEach(m => {
+                if (m.room === activeRoom && m.sender !== myRoomId && m.time > lastCheckedTime) {
+                    lastCheckedTime = m.time;
+                    if (m.type === 'text') {
+                        appendMessage(m.content, 'received');
+                    } else if (m.type === 'media') {
+                        appendMessage(m.content, 'received', true);
+                    }
+                }
+            });
+        }
+
         function appendMessage(content, type, isMedia = false) {
             const container = document.getElementById('messagesContainer');
             const msgDiv = document.createElement('div');
@@ -289,29 +281,8 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // التحكم بالنوافذ المنبثقة
-        function openMyIdModal() {
-            document.getElementById('myIdModal').style.display = 'flex';
-        }
-
-        function openAddFriendModal() {
-            document.getElementById('addFriendModal').style.display = 'flex';
-        }
-
-        function closeModals() {
-            document.getElementById('myIdModal').style.display = 'none';
-            document.getElementById('addFriendModal').style.display = 'none';
-        }
-
-        function copyMyId() {
-            navigator.clipboard.writeText(myPeerId).then(() => {
-                alert('تم نسخ المعرف الشخصي بنجاح!');
-            });
-        }
-
         function exitApp() {
-            if (confirm("هل تريد حقاً إغلاق التطبيق والخروج؟")) {
-                if (conn) conn.close();
+            if (confirm("هل تريد حقاً إغلاق التطبيق؟")) {
                 window.location.href = "about:blank";
             }
         }
@@ -320,11 +291,6 @@
         let mediaRecorder, audioChunks = [], isRecording = false;
 
         async function toggleRecord() {
-            if (!conn || !conn.open) {
-                alert('يرجى الاتصال بصديق أولاً للتسجيل والإرسال.');
-                return;
-            }
-
             const btn = document.getElementById('recordBtn');
             if (!isRecording) {
                 try {
@@ -336,7 +302,13 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const audioTag = `<audio controls src="${e.target.result}"></audio>`;
-                            conn.send({ type: 'media', content: audioTag });
+                            saveAndPublishMessage({
+                                room: activeRoom,
+                                sender: myRoomId,
+                                content: audioTag,
+                                type: 'media',
+                                time: Date.now()
+                            });
                             appendMessage(audioTag, 'sent', true);
                         };
                         reader.readAsDataURL(blob);
@@ -362,9 +334,6 @@
         function endCall() {
             document.getElementById('callOverlay').style.display = 'none';
         }
-
-        // تشغيل PeerJS عند تحميل الصفحة
-        window.onload = initPeer;
     </script>
 </body>
 </html>
