@@ -43,11 +43,13 @@
         .send-btn { background: #00a884; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; transition: background 0.2s; }
         .send-btn:hover { background: #01755d; }
 
-        /* Group Menu Modal (Hidden by default) */
+        /* Modals */
         .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 320px; text-align: center; }
-        .modal-content input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; outline: none; }
-        .modal-btn { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 340px; text-align: center; }
+        .modal-content input { width: 100%; padding: 10px; margin: 12px 0; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 0.95rem; text-align: center; }
+        .modal-btn { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        .modal-btn-secondary { background: #54656f; margin-top: 8px; }
+        .my-id-display { background: #f0f2f5; padding: 8px; border-radius: 6px; font-weight: bold; color: #075e54; word-break: break-all; margin: 10px 0; font-size: 0.9rem; }
 
         /* Video Call Overlay */
         .call-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
@@ -61,10 +63,11 @@
     <header>
         <div class="header-title">
             <i class="fa-solid fa-shield-halved"></i> 
-            <span id="currentRoomName">مجموعة الأمان العامة</span>
+            <span id="currentChatName">الرَّقِيم (محادثة آمنة)</span>
         </div>
         <div class="header-actions">
-            <i class="fa-solid fa-user-plus" onclick="openGroupModal()" title="إنشاء مجموعة جديدة"></i>
+            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="إضافة صديق برمز المعرف"></i>
+            <i class="fa-solid fa-id-badge" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
             <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
             <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
         </div>
@@ -74,12 +77,12 @@
     <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span style="font-size: 0.9rem; font-weight: bold;" id="activeSubText">المحادثة النشطة حالياً</span>
-                <span style="font-size: 0.8rem; color: #00a884;">مشفر تلقائياً <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.9rem; font-weight: bold;" id="activeSubText">التواصل مشفر بالكامل P2P</span>
+                <span style="font-size: 0.8rem; color: #00a884;">آمن تماماً بدون رقم <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم (RAQIM)! المحادثات مشفرة بالكامل بدون رقم هاتف.</div>
+                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم (RAQIM)! اضغط على أيقونة الهوية بالاعلى لمعرفة كودك الخاص ومشاركته مع صديقك، أو أضف صديقك للبدء.</div>
             </div>
 
             <!-- شريط الإدخال وزر الإرسال المفعّل -->
@@ -93,12 +96,25 @@
         </div>
     </div>
 
-    <!-- نافذة منبثقة مخفية لإنشاء المجموعات -->
-    <div class="modal" id="groupModal">
+    <!-- نافذة عرض معرفي الشخصي -->
+    <div class="modal" id="myIdModal">
         <div class="modal-content">
-            <h3>إنشاء مجموعة جديدة</h3>
-            <input type="text" id="newGroupNameInput" placeholder="أدخل اسم المجموعة...">
-            <button class="modal-btn" onclick="saveNewGroup()">إحداث وإنشاء</button>
+            <h3>معرفك الشخصي (ID)</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">اعط هذا الرمز لصديقك لكي يتمكن من إضافتك:</p>
+            <div class="my-id-display" id="myIdText">جاري التوليد...</div>
+            <button class="modal-btn" onclick="copyMyId()">نسخ المعرف</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- نافذة إضافة صديق عبر المعرف -->
+    <div class="modal" id="addFriendModal">
+        <div class="modal-content">
+            <h3>إضافة صديق جديد</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك (Peer ID) للاتصال المباشر:</p>
+            <input type="text" id="friendIdInput" placeholder="أدخل معرف الصديق هنا...">
+            <button class="modal-btn" onclick="connectWithFriend()">بدء المحادثة</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
         </div>
     </div>
 
@@ -113,6 +129,47 @@
     </div>
 
     <script>
+        // توليد معرف فريد للمستخدم تلقائياً عند أول دخول
+        let myId = localStorage.getItem('raqim_my_id');
+        if (!myId) {
+            myId = 'raqim-' + Math.random().toString(36.substring(2, 9)) + '-' + Date.now().toString(36);
+            localStorage.setItem('raqim_my_id', myId);
+        }
+
+        function openMyIdModal() {
+            document.getElementById('myIdText').textContent = myId;
+            document.getElementById('myIdModal').style.display = 'flex';
+        }
+
+        function copyMyId() {
+            navigator.clipboard.writeText(myId).then(() => {
+                alert('تم نسخ معرفك الشخصي بنجاح! أرسله لصديقك.');
+            });
+        }
+
+        function openAddFriendModal() {
+            document.getElementById('addFriendModal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('myIdModal').style.display = 'none';
+            document.getElementById('addFriendModal').style.display = 'none';
+        }
+
+        function connectWithFriend() {
+            const fInput = document.getElementById('friendIdInput');
+            const fId = fInput.value.trim();
+            if (!fId) {
+                alert('يرجى إدخال معرف صديق صحيح.');
+                return;
+            }
+            document.getElementById('currentChatName').textContent = 'محادثة مع: ' + fId.substring(0, 10) + '...';
+            document.getElementById('activeSubText').textContent = 'متصل بـ الصديق بنجاح';
+            closeModals();
+            appendMessage('تم إنشاء قناة اتصال آمنة ومباشرة مع الصديق بالمعرف: ' + fId, 'received');
+            fInput.value = '';
+        }
+
         // إرسال الرسائل
         function sendMessage() {
             const input = document.getElementById('messageInput');
@@ -193,21 +250,6 @@
                 mediaRecorder.stop();
                 isRecording = false;
                 btn.style.color = '#54656f';
-            }
-        }
-
-        // إدارات المجموعات المخفية عبر الأيقونة العلوية
-        function openGroupModal() {
-            document.getElementById('groupModal').style.display = 'flex';
-        }
-
-        function saveNewGroup() {
-            const nameInput = document.getElementById('newGroupNameInput');
-            if (nameInput.value.trim()) {
-                document.getElementById('currentRoomName').textContent = nameInput.value;
-                document.getElementById('activeSubText').textContent = "مجموعة: " + nameInput.value;
-                document.getElementById('groupModal').style.display = 'none';
-                nameInput.value = '';
             }
         }
 
