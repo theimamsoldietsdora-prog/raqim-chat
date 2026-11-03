@@ -50,147 +50,103 @@
         .call-actions { margin-top: 20px; display: flex; gap: 20px; }
         .end-call-btn { background: #ff3b30; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 8px; font-weight: bold; }
     </style>
-</head>
-<body>
 
-    <header>
-        <div class="header-title">
-            <i class="fa-solid fa-shield-halved"></i> 
-            <span id="currentChatName">الرَّقِيم</span>
-        </div>
-        <div class="header-actions">
-            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="انضمام لغرفة"></i>
-            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرفي"></i>
-            <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة"></i>
-            <i class="fa-solid fa-video" onclick="startCall('video')" title="فيديو"></i>
-            <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج"></i>
-        </div>
-    </header>
+    <!-- استيراد مكتبة Firebase عبر CDN -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
-        <div class="chat-area">
-            <div class="chat-header">
-                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">وضع الاتصال المباشر</span>
-                <span style="font-size: 0.75rem; color: #00a884;">نشط وآمن <i class="fa-solid fa-lock"></i></span>
-            </div>
+        const firebaseConfig = {
+            databaseURL: "https://raqim-chat-default-rtdb.firebaseio.com/"
+        };
 
-            <div class="messages-container" id="messagesContainer">
-                <div class="msg system">مرحباً بك في الرَّقِيم. لربط جهازيْن بسهولة تامة: أدخلا نفس كود الغرفة (مثال: raqim-room1) عبر زر الإضافة (+) وستصل الرسائل بينكما فوراً!</div>
-            </div>
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-            <div class="input-bar">
-                <input type="file" id="fileInput" style="display: none;" onchange="sendFile(this)">
-                <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="إرفاق"><i class="fa-solid fa-paperclip"></i></button>
-                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()" title="صوت"><i class="fa-solid fa-microphone"></i></button>
-                <input type="text" id="messageInput" placeholder="أكتب رسالة..." onkeypress="handleKeyPress(event)">
-                <button class="send-btn" onclick="sendMessage()" title="إرسال"><i class="fa-solid fa-paper-plane"></i></button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal" id="myIdModal">
-        <div class="modal-content">
-            <h3>كود الغرفة الخاص بك</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أعط هذا الكود لصديقك ليدخل معك:</p>
-            <div class="my-id-display" id="myIdText">raqim-room1</div>
-            <button class="modal-btn" onclick="copyMyId()">نسخ الكود</button>
-            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
-        </div>
-    </div>
-
-    <div class="modal" id="addFriendModal">
-        <div class="modal-content">
-            <h3>الانضمام لغرفة محادثة</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل نفس كود غرفة صديقك للانضمام:</p>
-            <input type="text" id="friendIdInput" placeholder="مثال: raqim-room1">
-            <button class="modal-btn" onclick="joinRoom()">دخول الغرفة</button>
-            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
-        </div>
-    </div>
-
-    <div class="call-overlay" id="callOverlay">
-        <div class="video-box" id="videoBox">
-            <p style="color: white; text-align: center;">جاري الاتصال...</p>
-        </div>
-        <div class="call-actions">
-            <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء</button>
-        </div>
-    </div>
-
-    <script>
-        let myId = 'user-' + Math.floor(Math.random() * 1000);
-        let currentRoom = 'raqim-room1';
+        let myId = 'user-' + Math.floor(Math.random() * 9000 + 1000);
+        let currentRoom = 'raqim-global-room';
+        let messagesRef = null;
 
         window.onload = function() {
             document.getElementById('myIdText').textContent = currentRoom;
-            startPolling();
+            initChatRoom(currentRoom);
         };
 
-        function openMyIdModal() { document.getElementById('myIdModal').style.display = 'flex'; }
-        function openAddFriendModal() { document.getElementById('addFriendModal').style.display = 'flex'; }
-        function closeModals() {
+        function initRoomMessages(roomName) {
+            messagesRef = ref(db, 'rooms/' + roomName);
+            onChildAdded(messagesRef, (snapshot) => {
+                let data = snapshot.val();
+                if (data && data.sender !== myId) {
+                    appendMessage(data.content, 'received', data.isMedia);
+                }
+            });
+        }
+
+        function initChatRoom(room) {
+            initRoomMessages(room);
+        }
+
+        window.openMyIdModal = function() { document.getElementById('myIdModal').style.display = 'flex'; }
+        window.openAddFriendModal = function() { document.getElementById('addFriendModal').style.display = 'flex'; }
+        window.closeModals = function() {
             document.getElementById('myIdModal').style.display = 'none';
             document.getElementById('addFriendModal').style.display = 'none';
         }
 
-        function copyMyId() {
-            navigator.clipboard.writeText(currentRoom).then(() => alert('تم النسخ!'));
+        window.copyMyId = function() {
+            navigator.clipboard.writeText(currentRoom).then(() => alert('تم نسخ كود الغرفة!'));
         }
 
-        function joinRoom() {
+        window.joinRoom = function() {
             const roomInput = document.getElementById('friendIdInput').value.trim();
-            if (!roomInput) return alert('أدخل كود صحيح');
+            if (!roomInput) return alert('أدخل كود الغرفة بشكل صحيح');
             currentRoom = roomInput;
             document.getElementById('myIdText').textContent = currentRoom;
             document.getElementById('currentChatName').textContent = 'غرفة: ' + currentRoom;
+            document.getElementById('messagesContainerinnerHTML'] = ''; // تفريغ الرسائل عند تغيير الغرفة
             closeModals();
-            appendSystemMessage('تم الانضمام إلى الغرفة: ' + currentRoom);
-            roomInput.value = '';
+            appendSystemMessage('تم الانتقال بنجاح إلى الغرفة: ' + currentRoom);
+            document.getElementById('friendIdInput').value = '';
+            initChatRoom(currentRoom);
         }
 
-        function sendMessage() {
+        window.sendMessage = function() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if (!text) return;
 
-            saveMsg({ sender: myId, text: text, type: 'text', time: Date.now() });
+            let messagePayload = {
+                sender: myId,
+                content: text,
+                isMedia: false,
+                time: Date.now()
+            };
+
+            if (messagesRef) {
+                push(messagesRef, messagePayload);
+            }
+
             appendMessage(text, 'sent');
             input.value = '';
         }
 
-        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+        window.handleKeyPress = function(e) { if (e.key === 'Enter') sendMessage(); }
 
-        function saveMsg(msgData) {
-            let key = 'chat_room_' + currentRoom;
-            let history = JSON.parse(localStorage.getItem(key) || '[]');
-            history.push(msgData);
-            localStorage.setItem(key, JSON.stringify(history));
-        }
-
-        let lastSeenCount = 0;
-        function startPolling() {
-            setInterval(() => {
-                let key = 'chat_room_' + currentRoom;
-                let history = JSON.parse(localStorage.getItem(key) || '[]');
-                if (history.length > lastSeenCount) {
-                    for (let i = lastSeenCount; i < history.length; i++) {
-                        let m = history[i];
-                        if (m.sender !== myId) {
-                            appendMessage(m.text, 'received', m.type === 'media');
-                        }
-                    }
-                    lastSeenCount = history.length;
-                }
-            }, 800);
-        }
-
-        function sendFile(input) {
+        window.sendFile = function(input) {
             const file = input.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 let tag = `<img src="${e.target.result}" />`;
-                saveMsg({ sender: myId, text: tag, type: 'media', time: Date.now() });
+                let payload = {
+                    sender: myId,
+                    content: tag,
+                    isMedia: true,
+                    time: Date.now()
+                };
+                if (messagesRef) {
+                    push(messagesRef, payload);
+                }
                 appendMessage(tag, 'sent', true);
             };
             reader.readAsDataURL(file);
@@ -222,12 +178,12 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function exitApp() {
+        window.exitApp = function() {
             if (confirm("إغلاق التطبيق؟")) window.location.href = "about:blank";
         }
 
         let mediaRecorder, chunks = [], recording = false;
-        async function toggleRecord() {
+        window.toggleRecord = async function() {
             const btn = document.getElementById('recordBtn');
             if (!recording) {
                 try {
@@ -239,7 +195,8 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             let tag = `<audio controls src="${e.target.result}"></audio>`;
-                            saveMsg({ sender: myId, text: tag, type: 'media', time: Date.now() });
+                            let payload = { sender: myId, content: tag, isMedia: true, time: Date.now() };
+                            if (messagesRef) push(messagesRef, payload);
                             appendMessage(tag, 'sent', true);
                         };
                         reader.readAsDataURL(blob);
@@ -256,8 +213,75 @@
             }
         }
 
-        function startCall(t) { document.getElementById('callOverlay').style.display = 'flex'; }
-        function endCall() { document.getElementById('callOverlay').style.display = 'none'; }
+        window.startCall = function(t) { document.getElementById('callOverlay').style.display = 'flex'; }
+        window.endCall = function() { document.getElementById('callOverlay').style.display = 'none'; }
     </script>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <i class="fa-solid fa-shield-halved"></i> 
+            <span id="currentChatName">الرَّقِيم (السحابي الآمن)</span>
+        </div>
+        <div class="header-actions">
+            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="انضمام لغرفة"></i>
+            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="كود الغرفة"></i>
+            <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة"></i>
+            <i class="fa-solid fa-video" onclick="startCall('video')" title="فيديو"></i>
+            <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج"></i>
+        </div>
+    </header>
+
+    <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="chat-area">
+            <div class="chat-header">
+                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">متصل بالسحابة المركزية</span>
+                <span style="font-size: 0.75rem; color: #00a884;" id="connectionStatus">متصل مباشر <i class="fa-solid fa-lock"></i></span>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم الاتصال بقاعدة بياناتك السحابية بنجاح. أرسل كود الغرفة لصديقك وابدأ المحادثة الفورية!</div>
+            </div>
+
+            <div class="input-bar">
+                <input type="file" id="fileInput" style="display: none;" onchange="sendFile(this)">
+                <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="إرفاق"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()" title="صوت"><i class="fa-solid fa-microphone"></i></button>
+                <input type="text" id="messageInput" placeholder="أكتب رسالة..." onkeypress="handleKeyPress(event)">
+                <button class="send-btn" onclick="sendMessage()" title="إرسال"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="myIdModal">
+        <div class="modal-content">
+            <h3>كود الغرفة الحالي</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">شارك هذا الكود مع الشخص الآخر ليتصل معك:</p>
+            <div class="my-id-display" id="myIdText">raqim-global-room</div>
+            <button class="modal-btn" onclick="copyMyId()">نسخ الكود</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
+        </div>
+    </div>
+
+    <div class="modal" id="addFriendModal">
+        <div class="modal-content">
+            <h3>الانضمام لغرفة مشتركة</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل نفس كود غرفة صديقك:</p>
+            <input type="text" id="friendIdInput" placeholder="مثال: room-123">
+            <button class="modal-btn" onclick="joinRoom()">دخول الغرفة</button>
+            <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
+        </div>
+    </div>
+
+    <div class="call-overlay" id="callOverlay">
+        <div class="video-box" id="videoBox">
+            <p style="color: white; text-align: center;">جاري الاتصال...</p>
+        </div>
+        <div class="call-actions">
+            <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء</button>
+        </div>
+    </div>
+
 </body>
 </html>
