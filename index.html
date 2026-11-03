@@ -17,9 +17,9 @@
         
         /* Header */
         header { background: #075e54; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .header-title { font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; gap: 8px; }
-        .header-actions { display: flex; align-items: center; gap: 18px; }
-        .header-actions i { font-size: 1.1rem; cursor: pointer; }
+        .header-title { font-size: 1rem; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+        .header-actions { display: flex; align-items: center; gap: 14px; }
+        .header-actions i { font-size: 1.1rem; cursor: pointer; padding: 4px; }
 
         /* Full Screen Chat Area */
         .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; width: 100%; height: 100%; position: relative; }
@@ -49,6 +49,7 @@
         .modal-content input { width: 100%; padding: 10px; margin: 12px 0; border: 1px solid #ccc; border-radius: 6px; outline: none; font-size: 0.95rem; text-align: center; }
         .modal-btn { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
         .modal-btn-secondary { background: #54656f; margin-top: 8px; }
+        .modal-btn-danger { background: #d32f2f; margin-top: 8px; }
         .my-id-display { background: #f0f2f5; padding: 8px; border-radius: 6px; font-weight: bold; color: #075e54; word-break: break-all; margin: 10px 0; font-size: 0.9rem; }
 
         /* Video Call Overlay */
@@ -63,13 +64,14 @@
     <header>
         <div class="header-title">
             <i class="fa-solid fa-shield-halved"></i> 
-            <span id="currentChatName">الرَّقِيم (محادثة آمنة)</span>
+            <span id="currentChatName">الرَّقِيم</span>
         </div>
         <div class="header-actions">
-            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="إضافة صديق برمز المعرف"></i>
-            <i class="fa-solid fa-id-badge" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
+            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="إضافة صديق"></i>
+            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
             <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
             <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
+            <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج إغلاق التطبيق"></i>
         </div>
     </header>
 
@@ -77,12 +79,12 @@
     <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span style="font-size: 0.9rem; font-weight: bold;" id="activeSubText">التواصل مشفر بالكامل P2P</span>
-                <span style="font-size: 0.8rem; color: #00a884;">آمن تماماً بدون رقم <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">محادثة آمنة P2P</span>
+                <span style="font-size: 0.75rem; color: #00a884;">بدون رقم هاتف <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم (RAQIM)! اضغط على أيقونة الهوية بالاعلى لمعرفة كودك الخاص ومشاركته مع صديقك، أو أضف صديقك للبدء.</div>
+                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم (RAQIM)! اضغط على أيقونة البصمة بالاعلى لمعرفة كودك ومشاركته، أو اضغط على زر الخروج (الطاقة) بالأعلى للخروج تماماً متى شئت.</div>
             </div>
 
             <!-- شريط الإدخال وزر الإرسال المفعّل -->
@@ -100,7 +102,7 @@
     <div class="modal" id="myIdModal">
         <div class="modal-content">
             <h3>معرفك الشخصي (ID)</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">اعط هذا الرمز لصديقك لكي يتمكن من إضافتك:</p>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أعط هذا الرمز لصديقك لكي يضيفك:</p>
             <div class="my-id-display" id="myIdText">جاري التوليد...</div>
             <button class="modal-btn" onclick="copyMyId()">نسخ المعرف</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
@@ -111,7 +113,7 @@
     <div class="modal" id="addFriendModal">
         <div class="modal-content">
             <h3>إضافة صديق جديد</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك (Peer ID) للاتصال المباشر:</p>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك للاتصال:</p>
             <input type="text" id="friendIdInput" placeholder="أدخل معرف الصديق هنا...">
             <button class="modal-btn" onclick="connectWithFriend()">بدء المحادثة</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
@@ -129,10 +131,10 @@
     </div>
 
     <script>
-        // توليد معرف فريد للمستخدم تلقائياً عند أول دخول
+        // توليد معرف فريد للمستخدم تلقائياً
         let myId = localStorage.getItem('raqim_my_id');
         if (!myId) {
-            myId = 'raqim-' + Math.random().toString(36.substring(2, 9)) + '-' + Date.now().toString(36);
+            myId = 'raqim-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
             localStorage.setItem('raqim_my_id', myId);
         }
 
@@ -143,7 +145,7 @@
 
         function copyMyId() {
             navigator.clipboard.writeText(myId).then(() => {
-                alert('تم نسخ معرفك الشخصي بنجاح! أرسله لصديقك.');
+                alert('تم نسخ معرفك الشخصي بنجاح!');
             });
         }
 
@@ -156,17 +158,28 @@
             document.getElementById('addFriendModal').style.display = 'none';
         }
 
+        // ميزة الخروج وإغلاق التطبيق نهائياً
+        function exitApp() {
+            if (confirm("هل تريد حقاً خروج وإغلاق التطبيق؟")) {
+                // إغلاق نافذة المتصفح أو توجيهها لصفحة بيضاء فارغة لقطع الجلسة
+                try {
+                    window.close();
+                } catch(e) {}
+                window.location.href = "about:blank";
+            }
+        }
+
         function connectWithFriend() {
             const fInput = document.getElementById('friendIdInput');
             const fId = fInput.value.trim();
             if (!fId) {
-                alert('يرجى إدخال معرف صديق صحيح.');
+                alert('يرجى إدخال معرف صحيح.');
                 return;
             }
-            document.getElementById('currentChatName').textContent = 'محادثة مع: ' + fId.substring(0, 10) + '...';
-            document.getElementById('activeSubText').textContent = 'متصل بـ الصديق بنجاح';
+            document.getElementById('currentChatName').textContent = 'محادثة: ' + fId.substring(0, 8) + '...';
+            document.getElementById('activeSubText').textContent = 'متصل بنجاح';
             closeModals();
-            appendMessage('تم إنشاء قناة اتصال آمنة ومباشرة مع الصديق بالمعرف: ' + fId, 'received');
+            appendMessage('تم الاتصال بالصديق عبر المعرف: ' + fId, 'received');
             fInput.value = '';
         }
 
@@ -193,7 +206,6 @@
                 msgDiv.textContent = content;
             }
 
-            // زر حذف الرسالة لدى الجميع
             const deleteBtn = document.createElement('span');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> مسح للجميع';
@@ -204,7 +216,7 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // إرسال الصور والملفات والوثائق
+        // إرسال الملفات والصور
         function sendFile(input) {
             const file = input.files[0];
             if (!file) return;
@@ -253,7 +265,6 @@
             }
         }
 
-        // إداره المكالمات
         function startCall(type) {
             document.getElementById('callOverlay').style.display = 'flex';
         }
