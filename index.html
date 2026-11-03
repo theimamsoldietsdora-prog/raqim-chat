@@ -13,100 +13,99 @@
     
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
-        body { background-color: #e5ddd5; height: 100vh; display: flex; flex-direction: column; }
+        body { background-color: #efeae2; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         /* Header */
-        header { background: #075e54; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
-        .header-title { font-size: 1.2rem; font-weight: bold; }
-        .header-actions i { font-size: 1.2rem; margin-right: 15px; cursor: pointer; }
+        header { background: #075e54; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .header-title { font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; gap: 8px; }
+        .header-actions { display: flex; align-items: center; gap: 18px; }
+        .header-actions i { font-size: 1.1rem; cursor: pointer; }
 
-        /* Container */
-        .app-container { flex: 1; display: flex; overflow: hidden; position: relative; }
+        /* Full Screen Chat Area */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; width: 100%; height: 100%; position: relative; }
+        .chat-header { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ddd; }
         
-        /* Sidebar / Chat list */
-        .sidebar { width: 100%; max-width: 350px; background: #fff; border-left: 1px solid #ddd; display: flex; flex-direction: column; }
-        .group-create-btn { padding: 12px; background: #25d366; color: white; border: none; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .chat-list { flex: 1; overflow-y: auto; }
-        .chat-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; cursor: pointer; }
-        .chat-item:hover { background: #f5f5f5; }
-        .chat-avatar { width: 45px; height: 45px; border-radius: 50%; background: #128c7e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 12px; }
-        
-        /* Chat Main Box */
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; }
-        .chat-header { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ccc; }
-        .messages-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .messages-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 70px; }
         
         /* Messages */
-        .msg { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; position: relative; word-wrap: break-word; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 0.95rem; position: relative; word-wrap: break-word; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
         .msg.sent { background: #d9fdd3; align-self: flex-start; }
         .msg.received { background: #ffffff; align-self: flex-end; }
-        .msg .delete-btn { font-size: 0.75rem; color: #ff4d4d; cursor: pointer; margin-top: 4px; display: block; text-align: left; }
+        .msg .delete-btn { font-size: 0.75rem; color: #ea0000; cursor: pointer; margin-top: 6px; display: block; text-align: left; font-weight: bold; }
         .msg audio, .msg img, .msg video { max-width: 100%; border-radius: 6px; margin-top: 5px; }
 
-        /* Input Controls */
-        .input-bar { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 8px; }
-        .input-bar input[type="text"] { flex: 1; padding: 10px 14px; border: none; border-radius: 20px; outline: none; font-size: 1rem; }
-        .icon-btn { background: none; border: none; font-size: 1.3rem; color: #54656f; cursor: pointer; padding: 6px; }
+        /* Input Controls Bar */
+        .input-bar { position: absolute; bottom: 0; left: 0; right: 0; background: #f0f2f5; padding: 8px 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #ccc; z-index: 100; }
+        .input-bar input[type="text"] { flex: 1; padding: 10px 16px; border: none; border-radius: 24px; outline: none; font-size: 1rem; background: #fff; }
+        .icon-btn { background: none; border: none; font-size: 1.2rem; color: #54656f; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; }
+        
+        /* Send Button Style */
+        .send-btn { background: #00a884; color: white; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; transition: background 0.2s; }
+        .send-btn:hover { background: #01755d; }
+
+        /* Group Menu Modal (Hidden by default) */
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 320px; text-align: center; }
+        .modal-content input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 6px; outline: none; }
+        .modal-btn { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
 
         /* Video Call Overlay */
         .call-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
-        .video-box { width: 80%; max-width: 600px; height: 350px; background: #222; border-radius: 12px; overflow: hidden; position: relative; }
+        .video-box { width: 85%; max-width: 600px; height: 350px; background: #222; border-radius: 12px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
         .call-actions { margin-top: 20px; display: flex; gap: 20px; }
-        .end-call-btn { background: #ff3b30; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        .end-call-btn { background: #ff3b30; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 8px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="header-title"><i class="fa-solid fa-shield-halved"></i> الرَّقِيم (RAQIM)</div>
+        <div class="header-title">
+            <i class="fa-solid fa-shield-halved"></i> 
+            <span id="currentRoomName">مجموعة الأمان العامة</span>
+        </div>
         <div class="header-actions">
-            <i class="fa-solid fa-phone" onclick="startCall('audio')"></i>
-            <i class="fa-solid fa-video" onclick="startCall('video')"></i>
-            <i class="fa-solid fa-download" id="installBtn" style="display:none;" title="تثبيت التطبيق"></i>
+            <i class="fa-solid fa-user-plus" onclick="openGroupModal()" title="إنشاء مجموعة جديدة"></i>
+            <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
+            <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
         </div>
     </header>
 
-    <div class="app-container">
-        <!-- القائمة الجانبية والمجموعات -->
-        <div class="sidebar">
-            <button class="group-create-btn" onclick="createGroup()"><i class="fa-solid fa-users"></i> إنشاء مجموعة جديدة</button>
-            <div class="chat-list" id="chatList">
-                <div class="chat-item">
-                    <div class="chat-avatar">G</div>
-                    <div>
-                        <strong>مجموعة الأمان العامة</strong>
-                        <p style="font-size: 0.8rem; color: #777;">مجموعة مشفرة</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- منطقة المحادثة -->
+    <!-- منطقة المحادثة التي تملأ الشاشة بالكامل -->
+    <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span id="activeChatName">مجموعة الأمان العامة</span>
-                <span style="font-size: 0.85rem; color: #25d366;">مشفر تلقائياً <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.9rem; font-weight: bold;" id="activeSubText">المحادثة النشطة حالياً</span>
+                <span style="font-size: 0.8rem; color: #00a884;">مشفر تلقائياً <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم! المحادثات مشفرة بالكامل بدون رقم هاتف.</div>
+                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم (RAQIM)! المحادثات مشفرة بالكامل بدون رقم هاتف.</div>
             </div>
 
-            <!-- شريط الإدخال -->
+            <!-- شريط الإدخال وزر الإرسال المفعّل -->
             <div class="input-bar">
                 <input type="file" id="fileInput" style="display: none;" onchange="sendFile(this)">
-                <button class="icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fa-solid fa-paperclip"></i></button>
-                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()"><i class="fa-solid fa-microphone"></i></button>
+                <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="إرفاق ملف أو صورة"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()" title="تسجيل صوتي"><i class="fa-solid fa-microphone"></i></button>
                 <input type="text" id="messageInput" placeholder="أكتب رسالة..." onkeypress="handleKeyPress(event)">
-                <button class="icon-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane" style="color: #075e54;"></i></button>
+                <button class="send-btn" onclick="sendMessage()" title="إرسال"><i class="fa-solid fa-paper-plane"></i></button>
             </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة مخفية لإنشاء المجموعات -->
+    <div class="modal" id="groupModal">
+        <div class="modal-content">
+            <h3>إنشاء مجموعة جديدة</h3>
+            <input type="text" id="newGroupNameInput" placeholder="أدخل اسم المجموعة...">
+            <button class="modal-btn" onclick="saveNewGroup()">إحداث وإنشاء</button>
         </div>
     </div>
 
     <!-- واجهة المكالمة -->
     <div class="call-overlay" id="callOverlay">
         <div class="video-box" id="videoBox">
-            <p style="color: white; text-align: center; margin-top: 150px;">جاري إقامة اتصال مشفر (P2P)...</p>
+            <p style="color: white; text-align: center;">جاري إقامة اتصال مشفر (P2P)...</p>
         </div>
         <div class="call-actions">
             <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء المكالمة</button>
@@ -114,23 +113,7 @@
     </div>
 
     <script>
-        // تسجيل الـ PWA لتثبيت التطبيق من الرابط
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
-        }
-
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            const installBtn = document.getElementById('installBtn');
-            installBtn.style.display = 'inline-block';
-            installBtn.addEventListener('click', () => {
-                deferredPrompt.prompt();
-            });
-        });
-
-        // إدارة الرسائل والوسائط
+        // إرسال الرسائل
         function sendMessage() {
             const input = document.getElementById('messageInput');
             if (!input.value.trim()) return;
@@ -177,31 +160,35 @@
                 } else if (file.type.startsWith('video/')) {
                     mediaTag = `<video controls src="${e.target.result}"></video>`;
                 } else {
-                    mediaTag = `<a href="${e.target.result}" download="${file.name}"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
+                    mediaTag = `<a href="${e.target.result}" download="${file.name}" style="color:#075e54; font-weight:bold;"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
                 }
                 appendMessage(mediaTag, 'sent', true);
             };
             reader.readAsDataURL(file);
         }
 
-        // التسجيل الصوتي (Voice Notes)
+        // التسجيل الصوتي
         let mediaRecorder, audioChunks = [], isRecording = false;
 
         async function toggleRecord() {
             const btn = document.getElementById('recordBtn');
             if (!isRecording) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/mp3' });
-                    const audioUrl = URL.createObjectURL(blob);
-                    appendMessage(`<audio controls src="${audioUrl}"></audio>`, 'sent', true);
-                    audioChunks = [];
-                };
-                mediaRecorder.start();
-                isRecording = true;
-                btn.style.color = 'red';
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+                        const audioUrl = URL.createObjectURL(blob);
+                        appendMessage(`<audio controls src="${audioUrl}"></audio>`, 'sent', true);
+                        audioChunks = [];
+                    };
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.style.color = 'red';
+                } catch (err) {
+                    alert("يرجى السماح بالوصول للميكروفون.");
+                }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
@@ -209,21 +196,18 @@
             }
         }
 
-        // إنشاء المجموعات
-        function createGroup() {
-            const groupName = prompt("أدخل اسم المجموعة الجديدة:");
-            if (groupName) {
-                const chatList = document.getElementById('chatList');
-                const item = document.createElement('div');
-                item.className = 'chat-item';
-                item.innerHTML = `
-                    <div class="chat-avatar">${groupName[0].toUpperCase()}</div>
-                    <div>
-                        <strong>${groupName}</strong>
-                        <p style="font-size: 0.8rem; color: #777;">مجموعة خاصة جديدة</p>
-                    </div>
-                `;
-                chatList.appendChild(item);
+        // إدارات المجموعات المخفية عبر الأيقونة العلوية
+        function openGroupModal() {
+            document.getElementById('groupModal').style.display = 'flex';
+        }
+
+        function saveNewGroup() {
+            const nameInput = document.getElementById('newGroupNameInput');
+            if (nameInput.value.trim()) {
+                document.getElementById('currentRoomName').textContent = nameInput.value;
+                document.getElementById('activeSubText').textContent = "مجموعة: " + nameInput.value;
+                document.getElementById('groupModal').style.display = 'none';
+                nameInput.value = '';
             }
         }
 
