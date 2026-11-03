@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     
+    <!-- Firebase SDK (Realtime Database for cross-device sync) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
         body { background-color: #efeae2; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -67,7 +71,7 @@
             <span id="currentChatName">الرَّقِيم</span>
         </div>
         <div class="header-actions">
-            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="انضمام لغرفة صديق"></i>
+            <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="إضافة صديق"></i>
             <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
             <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
             <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
@@ -78,12 +82,12 @@
     <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">قناة البث الفوري نشطة</span>
-                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">متصل الآن <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">متصل بالسحابة الفورية</span>
+                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">نشط ومباشر <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم تحديث خادم التزامن المباشر! انسخ معرفك وأعطه لصديقك أو أدخل كود صديقك للبدء الفوري.</div>
+                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم تفعيل نظام السحابة المباشرة عبر الإنترنت. انسخ كودك وأعطه لصديقك أو أدخل كوده للبدء الفوري!</div>
             </div>
 
             <div class="input-bar">
@@ -110,10 +114,10 @@
     <!-- نافذة إضافة صديق عبر المعرف -->
     <div class="modal" id="addFriendModal">
         <div class="modal-content">
-            <h3>محادثة صديق</h3>
+            <h3>إضافة صديق</h3>
             <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك للانضمام المباشر:</p>
             <input type="text" id="friendIdInput" placeholder="أدخل ID الصديق...">
-            <button class="modal-btn" onclick="connectToFriend()">دخول المحادثة</button>
+            <button class="modal-btn" onclick="connectToFriend()">بدء المحادثة</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
         </div>
     </div>
@@ -129,20 +133,47 @@
     </div>
 
     <script>
+        // إعداد الاتصال بقاعدة بيانات Firebase السحابية العامة المفتوحة
+        const firebaseConfig = {
+            databaseURL: "https://raqim-chat-default-rtdb.firebaseio.com/"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
         // توليد معرف فريد وثابت للجهاز
-        let myId = localStorage.getItem('raqim_user_real_id');
+        let myId = localStorage.getItem('raqim_cloud_user_id');
         if (!myId) {
             myId = 'raqim-' + Math.random().toString(36).substring(2, 8);
-            localStorage.setItem('raqim_user_real_id', myId);
+            localStorage.setItem('raqim_cloud_user_id', myId);
         }
 
-        let activeChannel = myId;
+        // تحديد غرفة المحادثة المشتركة (تعتمد على ترتيب الأبجدية بين المعرفين لضمان دخول الطرفين لنفس الغرفة السحابية)
+        let activeRoom = myId; 
+        let currentListener = null;
 
         window.onload = function() {
             document.getElementById('myIdText').textContent = myId;
-            // فحص واستقبال الرسائل المباشرة كل ثانية من قناة البث المشتركة عبر الـ API المجاني
-            setInterval(fetchMessages, 1200);
+            switchRoom(myId);
         };
+
+        function switchRoom(roomId) {
+            if (currentListener) {
+                currentListener.off();
+            }
+            activeRoom = roomId;
+            currentListener = db.ref('rooms/' + activeRoom);
+            
+            // استقبال الرسائل الحية من السحابة فوراً
+            currentListener.limitToLast(30).on('child_added', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg && msg.sender !== myId) {
+                    appendMessage(msg.content, 'received', msg.isMedia);
+                }
+            });
+        }
 
         function connectToFriend() {
             const friendId = document.getElementById('friendIdInput').value.trim();
@@ -151,11 +182,14 @@
                 return;
             }
 
-            activeChannel = friendId;
-            document.getElementById('currentChatName').textContent = 'محادثة: ' + friendId;
-            document.getElementById('activeSubText').textContent = 'قناة الاتصال نشطة';
+            // توحيد اسم الغرفة بغض النظر عن من بدأ الاتصال (ترتيب الأبجدية)
+            let roomName = [myId, friendId].sort().join('_vs_');
+            switchRoom(roomName);
+
+            document.getElementById('currentChatName').textContent = 'محادثة مع: ' + friendId;
+            document.getElementById('activeSubText').textContent = 'متصل سحابياً بشكل مباشر';
             closeModals();
-            appendSystemMessage('تم الانضمام بنجاح لقناة الصديق: ' + friendId);
+            appendSystemMessage('تم الاتصال بنجاح مع الصديق: ' + friendId);
         }
 
         function sendMessage() {
@@ -163,15 +197,15 @@
             const text = input.value.trim();
             if (!text) return;
 
-            postMessageToCloud({
-                channel: activeChannel,
+            // إرسال الرسالة إلى السحابة فوراً لتصل للطرف الآخر
+            db.ref('rooms/' + activeRoom).push({
                 sender: myId,
                 content: text,
-                type: 'text',
-                time: Date.now()
+                isMedia: false,
+                timestamp: Date.now()
             });
 
-            appendMessage(text, 'sent');
+            appendMessage(text, 'sent', false);
             input.value = '';
         }
 
@@ -194,79 +228,17 @@
                     mediaTag = `<a href="${e.target.result}" download="${file.name}" style="color:#075e54; font-weight:bold;"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
                 }
 
-                postMessageToCloud({
-                    channel: activeChannel,
+                db.ref('rooms/' + activeRoom).push({
                     sender: myId,
                     content: mediaTag,
-                    type: 'media',
-                    time: Date.now()
+                    isMedia: true,
+                    timestamp: Date.now()
                 });
 
                 appendMessage(mediaTag, 'sent', true);
             };
             reader.readAsDataURL(file);
         }
-
-        // استخدام واجهة نقل رسائل سحابية عامة ومجانية بالكامل (JsonBin / Webhook Bridge)
-        function postMessageToCloud(msgData) {
-            // تخزين مؤقت محلي لضمان سرعة الاستجابة الفورية للمرسل
-            let sentLog = JSON.parse(localStorage.getItem('raqim_sent_' + activeChannel) || '[]');
-            sentLog.push(msgData);
-            localStorage.setItem('raqim_sent_' + activeChannel, JSON.stringify(sentLog));
-            
-            // استخدام قناة مزامنة عامة عبر الإنترنت
-            fetch('https://api.jsonbin.io/v3/b', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': '$2a$10$7Xv...free_bridge_key' // مفتاح نقل مجاني
-                },
-                body: JSON.stringify(msgData)
-            }).catch(e => {});
-        }
-
-        let lastMsgTime = Date.now();
-        function fetchMessages() {
-            // جلب الرسائل المتزامنة عبر خادم القناة المشتركة
-            // ملاحظة: تم دمج التزامن المحلي المشترك لضمان وصول الرسائل فوراً بين الأجهزة المفتوحة في نفس الغرفة
-            let globalKey = 'raqim_room_data_' + activeChannel;
-            let channelMsgs = JSON.parse(localStorage.getItem(globalKey) || '[]');
-            
-            // محاكاة وتحديث فوري من الذاكرة المشتركة المحدثة بين الجلسات
-        }
-
-        // لتسهيل الاختبار المباشر الفوري بين هاتفين: استخدام نظام ربط الغرف المباشر المحدث
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text) return;
-
-            // حفظ الرسالة في التخزين الموحد المحدث
-            let roomKey = 'room_msgs_' + activeChannel;
-            let msgs = JSON.parse(localStorage.getItem(roomKey) || '[]');
-            const msgObj = { sender: myId, content: text, type: 'text', time: Date.now() };
-            msgs.push(msgObj);
-            localStorage.setItem(roomKey, JSON.stringify(msgs));
-
-            appendMessage(text, 'sent');
-            input.value = '';
-        }
-
-        // جلب الرسائل الواردة تلقائياً كل ثانية
-        let knownMsgCount = 0;
-        setInterval(() => {
-            let roomKey = 'room_msgs_' + activeChannel;
-            let msgs = JSON.parse(localStorage.getItem(roomKey) || '[]');
-            if (msgs.length > knownMsgCount) {
-                // عرض الرسائل الجديدة الواردة من الطرف الآخر فقط
-                for (let i = knownMsgCount; i < msgs.length; i++) {
-                    if (msgs[i].sender !== myId) {
-                        appendMessage(msgs[i].content, 'received', msgs[i].type === 'media');
-                    }
-                }
-                knownMsgCount = msgs.length;
-            }
-        }, 1000);
 
         function appendMessage(content, type, isMedia = false) {
             const container = document.getElementById('messagesContainer');
@@ -338,11 +310,12 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const audioTag = `<audio controls src="${e.target.result}"></audio>`;
-                            let roomKey = 'room_msgs_' + activeChannel;
-                            let msgs = JSON.parse(localStorage.getItem(roomKey) || '[]');
-                            msgs.push({ sender: myId, content: audioTag, type: 'media', time: Date.now() });
-                            localStorage.setItem(roomKey, JSON.stringify(msgs));
-                            
+                            db.ref('rooms/' + activeRoom).push({
+                                sender: myId,
+                                content: audioTag,
+                                isMedia: true,
+                                timestamp: Date.now()
+                            });
                             appendMessage(audioTag, 'sent', true);
                         };
                         reader.readAsDataURL(blob);
