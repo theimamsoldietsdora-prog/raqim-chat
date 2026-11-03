@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
     
+    <!-- Firebase SDK (Realtime Transport) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
         body { background-color: #efeae2; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -64,11 +68,11 @@
     <header>
         <div class="header-title">
             <i class="fa-solid fa-shield-halved"></i> 
-            <span id="currentChatName">الرَّقِيم (غرفة آمنة)</span>
+            <span id="currentChatName">الرَّقِيم</span>
         </div>
         <div class="header-actions">
             <i class="fa-solid fa-user-plus" onclick="openAddFriendModal()" title="انضمام لغرفة صديق"></i>
-            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرف الغرفة الخاص بي"></i>
+            <i class="fa-solid fa-fingerprint" onclick="openMyIdModal()" title="معرفي الشخصي"></i>
             <i class="fa-solid fa-phone" onclick="startCall('audio')" title="مكالمة صوتية"></i>
             <i class="fa-solid fa-video" onclick="startCall('video')" title="مكالمة فيديو"></i>
             <i class="fa-solid fa-power-off" onclick="exitApp()" title="خروج"></i>
@@ -78,12 +82,12 @@
     <div class="app-container" style="flex: 1; display: flex; flex-direction: column;">
         <div class="chat-area">
             <div class="chat-header">
-                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">متصل بالشبكة المحلية الآمنة</span>
-                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">نشط <i class="fa-solid fa-lock"></i></span>
+                <span style="font-size: 0.85rem; font-weight: bold;" id="activeSubText">شبكة المراسلة الفورية حية</span>
+                <span style="font-size: 0.75rem; color: #00a884;" id="statusIndicator">متصل الآن <i class="fa-solid fa-lock"></i></span>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم تفعيل نظام الغرف المشفرة الفورية. انسخ معرفك وأعطه لصديقك ليدخل معك في نفس القناة المباشرة!</div>
+                <div class="msg system">مرحباً بك في تطبيق الرَّقِيم. تم ربط نظام التواصل الفعلي بين الأجهزة! انسخ كود معرفك وأعطه لصديقك أو ادخل كود صديقك لبدء المحادثة الحية المباشرة.</div>
             </div>
 
             <div class="input-bar">
@@ -99,21 +103,21 @@
     <!-- نافذة عرض معرفي الشخصي -->
     <div class="modal" id="myIdModal">
         <div class="modal-content">
-            <h3>معرف الغرفة الخاص بك</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أعط هذا الكود لصديقك ليدخل معك:</p>
+            <h3>معرفك الشخصي (Peer ID)</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أرسل هذا الكود لصديقك ليتواصل معك:</p>
             <div class="my-id-display" id="myIdText">جاري التوليد...</div>
             <button class="modal-btn" onclick="copyMyId()">نسخ المعرف</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إغلاق</button>
         </div>
     </div>
 
-    <!-- نافذة الانضمام لغرفة صديق -->
+    <!-- نافذة إضافة صديق عبر المعرف -->
     <div class="modal" id="addFriendModal">
         <div class="modal-content">
-            <h3>الانضمام لمحادثة صديق</h3>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل كود غرفة صديقك للانضمام الفوري:</p>
-            <input type="text" id="friendIdInput" placeholder="أدخل معرف الغرفة هنا...">
-            <button class="modal-btn" onclick="joinRoom()">دخول المحادثة</button>
+            <h3>محادثة صديق</h3>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">أدخل معرف صديقك للانضمام المباشر:</p>
+            <input type="text" id="friendIdInput" placeholder="أدخل Peer ID الصديق...">
+            <button class="modal-btn" onclick="connectToFriend()">دخول المحادثة</button>
             <button class="modal-btn modal-btn-secondary" onclick="closeModals()">إلغاء</button>
         </div>
     </div>
@@ -129,64 +133,72 @@
     </div>
 
     <script>
+        // إعداد خادم النقل السريع الفوري (Firebase Realtime Transport)
+        const firebaseConfig = {
+            databaseURL: "https://raqim-p2p-default-rtdb.firebaseio.com/"
+        };
+        
+        // تهيئة محرك النقل
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
         // توليد معرف فريد وثابت للجهاز
-        let myRoomId = localStorage.getItem('raqim_room_id');
-        if (!myRoomId) {
-            myRoomId = 'raqim-' + Math.random().toString(36).substring(2, 8);
-            localStorage.setItem('raqim_room_id', myRoomId);
+        let myId = localStorage.getItem('raqim_user_real_id');
+        if (!myId) {
+            myId = 'raqim-' + Math.random().toString(36).substring(2, 8);
+            localStorage.setItem('raqim_user_real_id', myId);
         }
 
-        let activeRoom = myRoomId;
+        let activeChannel = myId;
+        let currentRef = null;
 
         window.onload = function() {
-            document.getElementById('myIdText').textContent = myRoomId;
-            // فحص الرسائل الواردة بشكل دوري ومستمر لتلقي رسائل الصديق فوراً
-            setInterval(checkMessages, 1000);
+            document.getElementById('myIdText').textContent = myId;
+            listenToChannel(myId);
         };
 
-        function openMyIdModal() {
-            document.getElementById('myIdModal').style.display = 'flex';
-        }
+        function listenToChannel(channelId) {
+            if (currentRef) currentRef.off();
+            
+            activeChannel = channelId;
+            currentRef = db.ref('channels/' + channelId);
 
-        function openAddFriendModal() {
-            document.getElementById('addFriendModal').style.display = 'flex';
-        }
-
-        function closeModals() {
-            document.getElementById('myIdModal').style.display = 'none';
-            document.getElementById('addFriendModal').style.display = 'none';
-        }
-
-        function copyMyId() {
-            navigator.clipboard.writeText(myRoomId).then(() => {
-                alert('تم نسخ معرف الغرفة بنجاح!');
+            // استماع المباشر للرسائل في القناة
+            currentRef.limitToLast(30).on('child_added', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg && msg.sender !== myId) {
+                    if (msg.type === 'text') {
+                        appendMessage(msg.content, 'received');
+                    } else if (msg.type === 'media') {
+                        appendMessage(msg.content, 'received', true);
+                    }
+                }
             });
         }
 
-        function joinRoom() {
-            const fInput = document.getElementById('friendIdInput');
-            const roomId = fInput.value.trim();
-            if (!roomId) {
-                alert('يرجى إدخال معرف غرفة صحيح.');
+        function connectToFriend() {
+            const friendId = document.getElementById('friendIdInput').value.trim();
+            if (!friendId) {
+                alert('يرجى إدخال معرف صديق صحيح.');
                 return;
             }
-            activeRoom = roomId;
-            document.getElementById('currentChatName').textContent = 'غرفة: ' + roomId;
-            document.getElementById('activeSubText').textContent = 'متصل بالقناة المشتركة';
+
+            listenToChannel(friendId);
+            document.getElementById('currentChatName').textContent = 'محادثة: ' + friendId;
+            document.getElementById('activeSubText').textContent = 'قناة الاتصال الفوري نشطة';
             closeModals();
-            appendSystemMessage('تم الانضمام بنجاح إلى الغرفة: ' + roomId);
-            fInput.value = '';
+            appendSystemMessage('تم الانضمام بنجاح لقناة الصديق: ' + friendId);
         }
 
-        // نظام تخزين وجلب الرسائل الفوري عبر التخزين المحلي المتزامن
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
             if (!text) return;
 
-            saveAndPublishMessage({
-                room: activeRoom,
-                sender: myRoomId,
+            db.ref('channels/' + activeChannel).push({
+                sender: myId,
                 content: text,
                 type: 'text',
                 time: Date.now()
@@ -215,9 +227,8 @@
                     mediaTag = `<a href="${e.target.result}" download="${file.name}" style="color:#075e54; font-weight:bold;"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
                 }
 
-                saveAndPublishMessage({
-                    room: activeRoom,
-                    sender: myRoomId,
+                db.ref('channels/' + activeChannel).push({
+                    sender: myId,
                     content: mediaTag,
                     type: 'media',
                     time: Date.now()
@@ -226,29 +237,6 @@
                 appendMessage(mediaTag, 'sent', true);
             };
             reader.readAsDataURL(file);
-        }
-
-        function saveAndPublishMessage(msgObj) {
-            let allMsgs = JSON.parse(localStorage.getItem('raqim_sync_msgs') || '[]');
-            allMsgs.push(msgObj);
-            // الاحتفاظ بأخر 50 رسالة فقط لتخفيف الذاكرة
-            if (allMsgs.length > 50) allMsgs.shift();
-            localStorage.setItem('raqim_sync_msgs', JSON.stringify(allMsgs));
-        }
-
-        let lastCheckedTime = Date.now();
-        function checkMessages() {
-            let allMsgs = JSON.parse(localStorage.getItem('raqim_sync_msgs') || '[]');
-            allMsgs.forEach(m => {
-                if (m.room === activeRoom && m.sender !== myRoomId && m.time > lastCheckedTime) {
-                    lastCheckedTime = m.time;
-                    if (m.type === 'text') {
-                        appendMessage(m.content, 'received');
-                    } else if (m.type === 'media') {
-                        appendMessage(m.content, 'received', true);
-                    }
-                }
-            });
         }
 
         function appendMessage(content, type, isMedia = false) {
@@ -281,6 +269,25 @@
             container.scrollTop = container.scrollHeight;
         }
 
+        function openMyIdModal() {
+            document.getElementById('myIdModal').style.display = 'flex';
+        }
+
+        function openAddFriendModal() {
+            document.getElementById('addFriendModal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('myIdModal').style.display = 'none';
+            document.getElementById('addFriendModal').style.display = 'none';
+        }
+
+        function copyMyId() {
+            navigator.clipboard.writeText(myId).then(() => {
+                alert('تم نسخ المعرف الشخصي بنجاح!');
+            });
+        }
+
         function exitApp() {
             if (confirm("هل تريد حقاً إغلاق التطبيق؟")) {
                 window.location.href = "about:blank";
@@ -302,9 +309,8 @@
                         const reader = new FileReader();
                         reader.onload = function(e) {
                             const audioTag = `<audio controls src="${e.target.result}"></audio>`;
-                            saveAndPublishMessage({
-                                room: activeRoom,
-                                sender: myRoomId,
+                            db.ref('channels/' + activeChannel).push({
+                                sender: myId,
                                 content: audioTag,
                                 type: 'media',
                                 time: Date.now()
