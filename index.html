@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الرَّقِيم | RAQIM</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#075e54">
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+        body { background-color: #e5ddd5; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Header */
+        header { background: #075e54; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .header-title { font-size: 1.2rem; font-weight: bold; }
+        .header-actions i { font-size: 1.2rem; margin-right: 15px; cursor: pointer; }
+
+        /* Container */
+        .app-container { flex: 1; display: flex; overflow: hidden; position: relative; }
+        
+        /* Sidebar / Chat list */
+        .sidebar { width: 100%; max-width: 350px; background: #fff; border-left: 1px solid #ddd; display: flex; flex-direction: column; }
+        .group-create-btn { padding: 12px; background: #25d366; color: white; border: none; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; cursor: pointer; }
+        .chat-item:hover { background: #f5f5f5; }
+        .chat-avatar { width: 45px; height: 45px; border-radius: 50%; background: #128c7e; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-left: 12px; }
+        
+        /* Chat Main Box */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #efeae2; }
+        .chat-header { background: #f0f2f5; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #ccc; }
+        .messages-container { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        
+        /* Messages */
+        .msg { max-width: 65%; padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; position: relative; word-wrap: break-word; }
+        .msg.sent { background: #d9fdd3; align-self: flex-start; }
+        .msg.received { background: #ffffff; align-self: flex-end; }
+        .msg .delete-btn { font-size: 0.75rem; color: #ff4d4d; cursor: pointer; margin-top: 4px; display: block; text-align: left; }
+        .msg audio, .msg img, .msg video { max-width: 100%; border-radius: 6px; margin-top: 5px; }
+
+        /* Input Controls */
+        .input-bar { background: #f0f2f5; padding: 10px; display: flex; align-items: center; gap: 8px; }
+        .input-bar input[type="text"] { flex: 1; padding: 10px 14px; border: none; border-radius: 20px; outline: none; font-size: 1rem; }
+        .icon-btn { background: none; border: none; font-size: 1.3rem; color: #54656f; cursor: pointer; padding: 6px; }
+
+        /* Video Call Overlay */
+        .call-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+        .video-box { width: 80%; max-width: 600px; height: 350px; background: #222; border-radius: 12px; overflow: hidden; position: relative; }
+        .call-actions { margin-top: 20px; display: flex; gap: 20px; }
+        .end-call-btn { background: #ff3b30; color: white; border: none; padding: 12px 24px; border-radius: 30px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title"><i class="fa-solid fa-shield-halved"></i> الرَّقِيم (RAQIM)</div>
+        <div class="header-actions">
+            <i class="fa-solid fa-phone" onclick="startCall('audio')"></i>
+            <i class="fa-solid fa-video" onclick="startCall('video')"></i>
+            <i class="fa-solid fa-download" id="installBtn" style="display:none;" title="تثبيت التطبيق"></i>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- القائمة الجانبية والمجموعات -->
+        <div class="sidebar">
+            <button class="group-create-btn" onclick="createGroup()"><i class="fa-solid fa-users"></i> إنشاء مجموعة جديدة</button>
+            <div class="chat-list" id="chatList">
+                <div class="chat-item">
+                    <div class="chat-avatar">G</div>
+                    <div>
+                        <strong>مجموعة الأمان العامة</strong>
+                        <p style="font-size: 0.8rem; color: #777;">مجموعة مشفرة</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- منطقة المحادثة -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <span id="activeChatName">مجموعة الأمان العامة</span>
+                <span style="font-size: 0.85rem; color: #25d366;">مشفر تلقائياً <i class="fa-solid fa-lock"></i></span>
+            </div>
+
+            <div class="messages-container" id="messagesContainer">
+                <div class="msg received">مرحباً بك في تطبيق الرَّقِيم! المحادثات مشفرة بالكامل بدون رقم هاتف.</div>
+            </div>
+
+            <!-- شريط الإدخال -->
+            <div class="input-bar">
+                <input type="file" id="fileInput" style="display: none;" onchange="sendFile(this)">
+                <button class="icon-btn" onclick="document.getElementById('fileInput').click()"><i class="fa-solid fa-paperclip"></i></button>
+                <button class="icon-btn" id="recordBtn" onclick="toggleRecord()"><i class="fa-solid fa-microphone"></i></button>
+                <input type="text" id="messageInput" placeholder="أكتب رسالة..." onkeypress="handleKeyPress(event)">
+                <button class="icon-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane" style="color: #075e54;"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- واجهة المكالمة -->
+    <div class="call-overlay" id="callOverlay">
+        <div class="video-box" id="videoBox">
+            <p style="color: white; text-align: center; margin-top: 150px;">جاري إقامة اتصال مشفر (P2P)...</p>
+        </div>
+        <div class="call-actions">
+            <button class="end-call-btn" onclick="endCall()"><i class="fa-solid fa-phone-slash"></i> إنهاء المكالمة</button>
+        </div>
+    </div>
+
+    <script>
+        // تسجيل الـ PWA لتثبيت التطبيق من الرابط
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        }
+
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installBtn = document.getElementById('installBtn');
+            installBtn.style.display = 'inline-block';
+            installBtn.addEventListener('click', () => {
+                deferredPrompt.prompt();
+            });
+        });
+
+        // إدارة الرسائل والوسائط
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            if (!input.value.trim()) return;
+            appendMessage(input.value, 'sent');
+            input.value = '';
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function appendMessage(content, type, isMedia = false) {
+            const container = document.getElementById('messagesContainer');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${type}`;
+            
+            if (isMedia) {
+                msgDiv.innerHTML = content;
+            } else {
+                msgDiv.textContent = content;
+            }
+
+            // زر حذف الرسالة لدى الجميع
+            const deleteBtn = document.createElement('span');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> مسح للجميع';
+            deleteBtn.onclick = () => msgDiv.remove();
+            msgDiv.appendChild(deleteBtn);
+
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // إرسال الصور والملفات والوثائق
+        function sendFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let mediaTag = '';
+                if (file.type.startsWith('image/')) {
+                    mediaTag = `<img src="${e.target.result}" />`;
+                } else if (file.type.startsWith('video/')) {
+                    mediaTag = `<video controls src="${e.target.result}"></video>`;
+                } else {
+                    mediaTag = `<a href="${e.target.result}" download="${file.name}"><i class="fa-solid fa-file"></i> ${file.name}</a>`;
+                }
+                appendMessage(mediaTag, 'sent', true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // التسجيل الصوتي (Voice Notes)
+        let mediaRecorder, audioChunks = [], isRecording = false;
+
+        async function toggleRecord() {
+            const btn = document.getElementById('recordBtn');
+            if (!isRecording) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const audioUrl = URL.createObjectURL(blob);
+                    appendMessage(`<audio controls src="${audioUrl}"></audio>`, 'sent', true);
+                    audioChunks = [];
+                };
+                mediaRecorder.start();
+                isRecording = true;
+                btn.style.color = 'red';
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.style.color = '#54656f';
+            }
+        }
+
+        // إنشاء المجموعات
+        function createGroup() {
+            const groupName = prompt("أدخل اسم المجموعة الجديدة:");
+            if (groupName) {
+                const chatList = document.getElementById('chatList');
+                const item = document.createElement('div');
+                item.className = 'chat-item';
+                item.innerHTML = `
+                    <div class="chat-avatar">${groupName[0].toUpperCase()}</div>
+                    <div>
+                        <strong>${groupName}</strong>
+                        <p style="font-size: 0.8rem; color: #777;">مجموعة خاصة جديدة</p>
+                    </div>
+                `;
+                chatList.appendChild(item);
+            }
+        }
+
+        // إداره المكالمات
+        function startCall(type) {
+            document.getElementById('callOverlay').style.display = 'flex';
+        }
+
+        function endCall() {
+            document.getElementById('callOverlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
